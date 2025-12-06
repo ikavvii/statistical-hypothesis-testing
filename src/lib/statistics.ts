@@ -116,34 +116,27 @@ function tQuantile(p: number, df: number): number {
     throw new Error("Probability must be between 0 and 1")
   }
   
-  let t = 0
-  let step = 10
-  let lastT = 0
-  const epsilon = 0.0001
-  const maxIterations = 1000
+  let left = -100
+  let right = 100
+  const epsilon = 0.000001
+  const maxIterations = 100
   
   for (let i = 0; i < maxIterations; i++) {
-    const cdf = tCDF(t, df)
-    const diff = cdf - p
+    const mid = (left + right) / 2
+    const cdf = tCDF(mid, df)
     
-    if (Math.abs(diff) < epsilon) {
-      return t
+    if (Math.abs(cdf - p) < epsilon || Math.abs(right - left) < epsilon) {
+      return mid
     }
     
-    if (diff > 0) {
-      t -= step
+    if (cdf < p) {
+      left = mid
     } else {
-      t += step
+      right = mid
     }
-    
-    if (Math.abs(t - lastT) < epsilon) {
-      step /= 2
-    }
-    
-    lastT = t
   }
   
-  return t
+  return (left + right) / 2
 }
 
 export function calculateTTestFromStats(
