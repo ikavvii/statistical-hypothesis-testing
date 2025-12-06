@@ -6,14 +6,27 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { CheckCircle, XCircle, Warning } from "@phosphor-icons/react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CheckCircle, XCircle, Warning, ListNumbers, Function } from "@phosphor-icons/react"
 import TDistributionChart from "./TDistributionChart"
-import { calculateTTest, TTestResult, TTestType } from "@/lib/statistics"
+import { calculateTTest, calculateTTestFromStats, TTestResult, TTestType } from "@/lib/statistics"
+
+type InputMode = "raw" | "summary"
 
 export default function TTestCalculator() {
+  const [inputMode, setInputMode] = useState<InputMode>("raw")
   const [testType, setTestType] = useState<TTestType>("one-sample")
+  
   const [sampleData, setSampleData] = useState("")
   const [sample2Data, setSample2Data] = useState("")
+  
+  const [mean1, setMean1] = useState("")
+  const [sd1, setSd1] = useState("")
+  const [n1, setN1] = useState("")
+  const [mean2, setMean2] = useState("")
+  const [sd2, setSd2] = useState("")
+  const [n2, setN2] = useState("")
+  
   const [hypothesizedMean, setHypothesizedMean] = useState("0")
   const [alpha, setAlpha] = useState("0.05")
   const [tailType, setTailType] = useState<"two" | "left" | "right">("two")
@@ -24,43 +37,117 @@ export default function TTestCalculator() {
     setError("")
     
     try {
-      const sample1 = sampleData.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
-      
-      if (sample1.length < 2) {
-        setError("Sample 1 must have at least 2 values")
-        return
-      }
-
-      let sample2: number[] | undefined
-      if (testType === "two-sample" || testType === "paired") {
-        sample2 = sample2Data.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+      if (inputMode === "raw") {
+        const sample1 = sampleData.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
         
-        if (sample2.length < 2) {
-          setError("Sample 2 must have at least 2 values")
+        if (sample1.length < 2) {
+          setError("Sample 1 must have at least 2 values")
           return
         }
 
-        if (testType === "paired" && sample1.length !== sample2.length) {
-          setError("Paired samples must have the same number of values")
+        let sample2: number[] | undefined
+        if (testType === "two-sample" || testType === "paired") {
+          sample2 = sample2Data.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+          
+          if (sample2.length < 2) {
+            setError("Sample 2 must have at least 2 values")
+            return
+          }
+
+          if (testType === "paired" && sample1.length !== sample2.length) {
+            setError("Paired samples must have the same number of values")
+            return
+          }
+        }
+
+        const mu0 = parseFloat(hypothesizedMean)
+        const alphaValue = parseFloat(alpha)
+
+        if (isNaN(mu0) || isNaN(alphaValue)) {
+          setError("Invalid hypothesized mean or alpha value")
           return
         }
+
+        if (alphaValue <= 0 || alphaValue >= 1) {
+          setError("Alpha must be between 0 and 1")
+          return
+        }
+
+        const testResult = calculateTTest(sample1, testType, tailType, alphaValue, mu0, sample2)
+        setResult(testResult)
+      } else {
+        const sampleMean1 = parseFloat(mean1)
+        const sampleSD1 = parseFloat(sd1)
+        const sampleN1 = parseInt(n1)
+        const mu0 = parseFloat(hypothesizedMean)
+        const alphaValue = parseFloat(alpha)
+
+        if (isNaN(sampleMean1) || isNaN(sampleSD1) || isNaN(sampleN1)) {
+          setError("Invalid sample statistics for Sample 1")
+          return
+        }
+
+        if (sampleN1 < 2) {
+          setError("Sample size must be at least 2")
+          return
+        }
+
+        if (sampleSD1 <= 0) {
+          setError("Standard deviation must be positive")
+          return
+        }
+
+        if (testType === "two-sample" || testType === "paired") {
+          const sampleMean2 = parseFloat(mean2)
+          const sampleSD2 = parseFloat(sd2)
+          const sampleN2 = parseInt(n2)
+
+          if (isNaN(sampleMean2) || isNaN(sampleSD2) || isNaN(sampleN2)) {
+            setError("Invalid sample statistics for Sample 2")
+            return
+          }
+
+          if (sampleN2 < 2) {
+            setError("Sample 2 size must be at least 2")
+            return
+          }
+
+          if (sampleSD2 <= 0) {
+            setError("Sample 2 standard deviation must be positive")
+            return
+          }
+
+          if (testType === "paired" && sampleN1 !== sampleN2) {
+            setError("Paired samples must have the same sample size")
+            return
+          }
+
+          const testResult = calculateTTestFromStats(
+            sampleMean1, sampleSD1, sampleN1,
+            testType, tailType, alphaValue,
+            mu0,
+            sampleMean2, sampleSD2, sampleN2
+          )
+          setResult(testResult)
+        } else {
+          if (isNaN(mu0) || isNaN(alphaValue)) {
+            setError("Invalid hypothesized mean or alpha value")
+            return
+          }
+
+          if (alphaValue <= 0 || alphaValue >= 1) {
+            setError("Alpha must be between 0 and 1")
+            return
+          }
+
+          const testResult = calculateTTestFromStats(
+            sampleMean1, sampleSD1, sampleN1,
+            testType, tailType, alphaValue,
+            mu0
+          )
+          setResult(testResult)
+        }
       }
-
-      const mu0 = parseFloat(hypothesizedMean)
-      const alphaValue = parseFloat(alpha)
-
-      if (isNaN(mu0) || isNaN(alphaValue)) {
-        setError("Invalid hypothesized mean or alpha value")
-        return
-      }
-
-      if (alphaValue <= 0 || alphaValue >= 1) {
-        setError("Alpha must be between 0 and 1")
-        return
-      }
-
-      const testResult = calculateTTest(sample1, testType, tailType, alphaValue, mu0, sample2)
-      setResult(testResult)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during calculation")
     }
@@ -69,6 +156,12 @@ export default function TTestCalculator() {
   const handleClear = () => {
     setSampleData("")
     setSample2Data("")
+    setMean1("")
+    setSd1("")
+    setN1("")
+    setMean2("")
+    setSd2("")
+    setN2("")
     setHypothesizedMean("0")
     setResult(null)
     setError("")
@@ -153,60 +246,185 @@ export default function TTestCalculator() {
         </Card>
 
         <Card className="p-6 shadow-sm">
-          <h2 className="text-2xl font-semibold text-primary mb-4">Sample Data</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-primary">Data Input</h2>
+          </div>
           
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="sample-data" className="text-sm font-medium mb-2 block">
-                {testType === "two-sample" ? "Sample 1 Data" : testType === "paired" ? "Before / Group 1" : "Sample Data"}
-              </Label>
-              <Input
-                id="sample-data"
-                value={sampleData}
-                onChange={(e) => setSampleData(e.target.value)}
-                placeholder="Enter values separated by commas (e.g., 23, 25, 27, 29, 31)"
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated numbers
-              </p>
-            </div>
+          <Tabs value={inputMode} onValueChange={(value) => setInputMode(value as InputMode)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="raw" className="gap-2">
+                <ListNumbers size={18} weight="duotone" />
+                Raw Data
+              </TabsTrigger>
+              <TabsTrigger value="summary" className="gap-2">
+                <Function size={18} weight="duotone" />
+                Summary Stats
+              </TabsTrigger>
+            </TabsList>
 
-            {(testType === "two-sample" || testType === "paired") && (
+            <TabsContent value="raw" className="space-y-4 mt-0">
               <div>
-                <Label htmlFor="sample2-data" className="text-sm font-medium mb-2 block">
-                  {testType === "paired" ? "After / Group 2" : "Sample 2 Data"}
+                <Label htmlFor="sample-data" className="text-sm font-medium mb-2 block">
+                  {testType === "two-sample" ? "Sample 1 Data" : testType === "paired" ? "Before / Group 1" : "Sample Data"}
                 </Label>
                 <Input
-                  id="sample2-data"
-                  value={sample2Data}
-                  onChange={(e) => setSample2Data(e.target.value)}
-                  placeholder="Enter values separated by commas"
+                  id="sample-data"
+                  value={sampleData}
+                  onChange={(e) => setSampleData(e.target.value)}
+                  placeholder="Enter values separated by commas (e.g., 23, 25, 27, 29, 31)"
                   className="font-mono text-sm"
                 />
-                {testType === "paired" && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Must have same number of values as Sample 1
+                <p className="text-xs text-muted-foreground mt-1">
+                  Comma-separated numbers
+                </p>
+              </div>
+
+              {(testType === "two-sample" || testType === "paired") && (
+                <div>
+                  <Label htmlFor="sample2-data" className="text-sm font-medium mb-2 block">
+                    {testType === "paired" ? "After / Group 2" : "Sample 2 Data"}
+                  </Label>
+                  <Input
+                    id="sample2-data"
+                    value={sample2Data}
+                    onChange={(e) => setSample2Data(e.target.value)}
+                    placeholder="Enter values separated by commas"
+                    className="font-mono text-sm"
+                  />
+                  {testType === "paired" && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Must have same number of values as Sample 1
+                    </p>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="summary" className="space-y-4 mt-0">
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">
+                  {testType === "two-sample" ? "Sample 1 Statistics" : testType === "paired" ? "Difference Statistics (d = Before - After)" : "Sample Statistics"}
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="mean1" className="text-xs mb-1 block">
+                      Mean {testType === "paired" && "(d̄)"}
+                    </Label>
+                    <Input
+                      id="mean1"
+                      type="number"
+                      step="any"
+                      value={mean1}
+                      onChange={(e) => setMean1(e.target.value)}
+                      placeholder="x̄"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sd1" className="text-xs mb-1 block">
+                      Std Dev {testType === "paired" && "(sᵈ)"}
+                    </Label>
+                    <Input
+                      id="sd1"
+                      type="number"
+                      step="any"
+                      value={sd1}
+                      onChange={(e) => setSd1(e.target.value)}
+                      placeholder="s"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="n1" className="text-xs mb-1 block">
+                      Size (n)
+                    </Label>
+                    <Input
+                      id="n1"
+                      type="number"
+                      step="1"
+                      value={n1}
+                      onChange={(e) => setN1(e.target.value)}
+                      placeholder="n"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {testType === "two-sample" && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm">Sample 2 Statistics</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="mean2" className="text-xs mb-1 block">
+                        Mean
+                      </Label>
+                      <Input
+                        id="mean2"
+                        type="number"
+                        step="any"
+                        value={mean2}
+                        onChange={(e) => setMean2(e.target.value)}
+                        placeholder="x̄₂"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sd2" className="text-xs mb-1 block">
+                        Std Dev
+                      </Label>
+                      <Input
+                        id="sd2"
+                        type="number"
+                        step="any"
+                        value={sd2}
+                        onChange={(e) => setSd2(e.target.value)}
+                        placeholder="s₂"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="n2" className="text-xs mb-1 block">
+                        Size (n)
+                      </Label>
+                      <Input
+                        id="n2"
+                        type="number"
+                        step="1"
+                        value={n2}
+                        onChange={(e) => setN2(e.target.value)}
+                        placeholder="n₂"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {testType === "paired" && (
+                <div className="bg-primary/10 border border-primary/30 p-3 rounded-lg">
+                  <p className="text-xs leading-relaxed">
+                    <strong>Note:</strong> For paired t-test with summary stats, enter the statistics of the <strong>differences</strong> (d = Before - After), not the individual group statistics.
                   </p>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
 
-            {error && (
-              <div className="bg-destructive/10 border border-destructive/30 p-3 rounded-lg flex items-start gap-2">
-                <Warning size={20} className="text-destructive flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <Button onClick={handleCalculate} className="flex-1" size="lg">
-                Calculate
-              </Button>
-              <Button onClick={handleClear} variant="outline" size="lg">
-                Clear
-              </Button>
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/30 p-3 rounded-lg flex items-start gap-2 mt-4">
+              <Warning size={20} className="text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{error}</p>
             </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button onClick={handleCalculate} className="flex-1" size="lg">
+              Calculate
+            </Button>
+            <Button onClick={handleClear} variant="outline" size="lg">
+              Clear
+            </Button>
           </div>
         </Card>
 
@@ -215,11 +433,15 @@ export default function TTestCalculator() {
             <h3 className="text-lg font-semibold mb-3">Sample Statistics</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-background p-3 rounded">
-                <p className="text-muted-foreground text-xs mb-1">Sample Mean</p>
+                <p className="text-muted-foreground text-xs mb-1">
+                  {testType === "paired" ? "Mean Difference" : testType === "two-sample" ? "Mean Difference" : "Sample Mean"}
+                </p>
                 <p className="font-mono font-semibold">{result.sampleMean.toFixed(4)}</p>
               </div>
               <div className="bg-background p-3 rounded">
-                <p className="text-muted-foreground text-xs mb-1">Sample SD</p>
+                <p className="text-muted-foreground text-xs mb-1">
+                  {testType === "two-sample" ? "Pooled SD" : "Sample SD"}
+                </p>
                 <p className="font-mono font-semibold">{result.sampleSD.toFixed(4)}</p>
               </div>
               <div className="bg-background p-3 rounded">

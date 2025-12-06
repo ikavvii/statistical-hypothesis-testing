@@ -20,11 +20,11 @@ An interactive educational web app that serves as both a comprehensive cheat she
 - Success criteria: All syllabus topics covered with clear definitions, formulas, and examples
 
 **Interactive T-Test Calculator**
-- Functionality: Allows users to input sample data and parameters, calculates t-statistic, p-value, and displays distribution visualization
-- Purpose: Transforms abstract statistical concepts into tangible, visual understanding through experimentation
-- Trigger: User enters sample data or selects test type
-- Progression: User selects test type (one-sample/two-sample/paired) → enters data values → sets significance level → views calculated t-statistic → sees visual distribution with critical regions → interprets results
-- Success criteria: Accurate calculations, real-time updates, clear distribution visualization showing test statistic and critical values
+- Functionality: Allows users to input either raw sample data OR summary statistics (mean, SD, n), calculates t-statistic, p-value, and displays distribution visualization
+- Purpose: Transforms abstract statistical concepts into tangible, visual understanding through experimentation; supports both raw data analysis and textbook problem solving
+- Trigger: User enters sample data/statistics or selects test type
+- Progression: User selects test type (one-sample/two-sample/paired) → chooses input mode (raw data or summary stats) → enters values → sets significance level → views calculated t-statistic → sees visual distribution with critical regions → interprets results
+- Success criteria: Accurate calculations for both input modes, real-time updates, clear distribution visualization showing test statistic and critical values
 
 **Distribution Visualization**
 - Functionality: Renders t-distribution curve with shaded critical regions, test statistic marker, and p-value representation
@@ -42,8 +42,9 @@ An interactive educational web app that serves as both a comprehensive cheat she
 
 ## Edge Case Handling
 
-- **Empty/Invalid Data**: Display helpful validation messages guiding users to correct input formats
+- **Empty/Invalid Data**: Display helpful validation messages guiding users to correct input formats (both for raw data and summary statistics)
 - **Insufficient Sample Size**: Warn when sample size is too small for reliable results (n < 2)
+- **Invalid Summary Stats**: Validate that standard deviation is positive and sample size is a positive integer
 - **Division by Zero**: Handle cases with zero variance by displaying appropriate error message
 - **Extreme Values**: Gracefully handle very large or small numbers without breaking calculations
 - **Missing Inputs**: Disable calculation until all required fields are completed

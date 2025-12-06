@@ -146,6 +146,146 @@ function tQuantile(p: number, df: number): number {
   return t
 }
 
+export function calculateTTestFromStats(
+  mean1: number,
+  sd1: number,
+  n1: number,
+  testType: TTestType,
+  tailType: TailType,
+  alpha: number,
+  hypothesizedMean: number = 0,
+  mean2?: number,
+  sd2?: number,
+  n2?: number
+): TTestResult {
+  let tStatistic: number
+  let df: number
+  let sampleMean: number
+  let sampleSD: number
+  let sampleSize: number
+  let hypotheses: { null: string; alternative: string }
+
+  if (testType === "one-sample") {
+    sampleMean = mean1
+    sampleSD = sd1
+    sampleSize = n1
+    df = sampleSize - 1
+    
+    const se = sampleSD / Math.sqrt(sampleSize)
+    tStatistic = (sampleMean - hypothesizedMean) / se
+    
+    hypotheses = {
+      null: `μ = ${hypothesizedMean}`,
+      alternative: tailType === "two" 
+        ? `μ ≠ ${hypothesizedMean}`
+        : tailType === "right"
+        ? `μ > ${hypothesizedMean}`
+        : `μ < ${hypothesizedMean}`
+    }
+  } else if (testType === "paired") {
+    sampleMean = mean1
+    sampleSD = sd1
+    sampleSize = n1
+    df = sampleSize - 1
+    
+    const se = sampleSD / Math.sqrt(sampleSize)
+    tStatistic = sampleMean / se
+    
+    hypotheses = {
+      null: "μd = 0",
+      alternative: tailType === "two" 
+        ? "μd ≠ 0"
+        : tailType === "right"
+        ? "μd > 0"
+        : "μd < 0"
+    }
+  } else {
+    if (mean2 === undefined || sd2 === undefined || n2 === undefined) {
+      throw new Error("Two-sample test requires second sample statistics")
+    }
+    
+    const pooledSD = Math.sqrt(
+      ((n1 - 1) * sd1 * sd1 + (n2 - 1) * sd2 * sd2) / (n1 + n2 - 2)
+    )
+    
+    const se = pooledSD * Math.sqrt(1 / n1 + 1 / n2)
+    tStatistic = (mean1 - mean2) / se
+    
+    df = n1 + n2 - 2
+    sampleMean = mean1 - mean2
+    sampleSD = pooledSD
+    sampleSize = n1 + n2
+    
+    hypotheses = {
+      null: "μ₁ = μ₂",
+      alternative: tailType === "two" 
+        ? "μ₁ ≠ μ₂"
+        : tailType === "right"
+        ? "μ₁ > μ₂"
+        : "μ₁ < μ₂"
+    }
+  }
+
+  let pValue: number
+  let criticalValue: number[]
+  
+  if (tailType === "two") {
+    pValue = 2 * (1 - tCDF(Math.abs(tStatistic), df))
+    const tCrit = tQuantile(1 - alpha / 2, df)
+    criticalValue = [-tCrit, tCrit]
+  } else if (tailType === "right") {
+    pValue = 1 - tCDF(tStatistic, df)
+    criticalValue = [tQuantile(1 - alpha, df)]
+  } else {
+    pValue = tCDF(tStatistic, df)
+    criticalValue = [tQuantile(alpha, df)]
+  }
+
+  const reject = pValue < alpha
+
+  let conclusion: string
+  if (reject) {
+    conclusion = `There is sufficient evidence at the ${(alpha * 100).toFixed(0)}% significance level to reject the null hypothesis.`
+  } else {
+    conclusion = `There is insufficient evidence at the ${(alpha * 100).toFixed(0)}% significance level to reject the null hypothesis.`
+  }
+
+  let interpretation: string
+  if (testType === "one-sample") {
+    if (reject) {
+      interpretation = `The sample mean (${sampleMean.toFixed(2)}) is significantly different from the hypothesized mean (${hypothesizedMean}).`
+    } else {
+      interpretation = `The sample mean (${sampleMean.toFixed(2)}) is not significantly different from the hypothesized mean (${hypothesizedMean}).`
+    }
+  } else if (testType === "paired") {
+    if (reject) {
+      interpretation = `There is a significant difference between the paired observations (mean difference = ${sampleMean.toFixed(2)}).`
+    } else {
+      interpretation = `There is no significant difference between the paired observations (mean difference = ${sampleMean.toFixed(2)}).`
+    }
+  } else {
+    if (reject) {
+      interpretation = `There is a significant difference between the two groups (mean difference = ${sampleMean.toFixed(2)}).`
+    } else {
+      interpretation = `There is no significant difference between the two groups (mean difference = ${sampleMean.toFixed(2)}).`
+    }
+  }
+
+  return {
+    tStatistic,
+    pValue,
+    df,
+    criticalValue,
+    sampleMean,
+    sampleSD,
+    sampleSize,
+    hypotheses,
+    reject,
+    conclusion,
+    interpretation
+  }
+}
+
 export function calculateTTest(
   sample1: number[],
   testType: TTestType,
