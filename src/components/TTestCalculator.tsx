@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useKV } from "@github/spark/hooks"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -16,23 +17,23 @@ import { calculateTTest, calculateTTestFromStats, TTestResult, TTestType } from 
 type InputMode = "raw" | "summary"
 
 export default function TTestCalculator() {
-  const [inputMode, setInputMode] = useState<InputMode>("raw")
-  const [testType, setTestType] = useState<TTestType>("one-sample")
+  const [inputMode, setInputMode] = useKV<InputMode>("ttest-input-mode", "raw")
+  const [testType, setTestType] = useKV<TTestType>("ttest-test-type", "one-sample")
   
-  const [sampleData, setSampleData] = useState("")
-  const [sample2Data, setSample2Data] = useState("")
+  const [sampleData, setSampleData] = useKV<string>("ttest-sample-data", "")
+  const [sample2Data, setSample2Data] = useKV<string>("ttest-sample2-data", "")
   
-  const [mean1, setMean1] = useState("")
-  const [sd1, setSd1] = useState("")
-  const [n1, setN1] = useState("")
-  const [mean2, setMean2] = useState("")
-  const [sd2, setSd2] = useState("")
-  const [n2, setN2] = useState("")
+  const [mean1, setMean1] = useKV<string>("ttest-mean1", "")
+  const [sd1, setSd1] = useKV<string>("ttest-sd1", "")
+  const [n1, setN1] = useKV<string>("ttest-n1", "")
+  const [mean2, setMean2] = useKV<string>("ttest-mean2", "")
+  const [sd2, setSd2] = useKV<string>("ttest-sd2", "")
+  const [n2, setN2] = useKV<string>("ttest-n2", "")
   
-  const [hypothesizedMean, setHypothesizedMean] = useState("0")
-  const [alpha, setAlpha] = useState("0.05")
-  const [tailType, setTailType] = useState<"two" | "left" | "right">("two")
-  const [result, setResult] = useState<TTestResult | null>(null)
+  const [hypothesizedMean, setHypothesizedMean] = useKV<string>("ttest-hypothesized-mean", "0")
+  const [alpha, setAlpha] = useKV<string>("ttest-alpha", "0.05")
+  const [tailType, setTailType] = useKV<"two" | "left" | "right">("ttest-tail-type", "two")
+  const [result, setResult] = useKV<TTestResult | null>("ttest-result", null)
   const [error, setError] = useState("")
   const [showReportDialog, setShowReportDialog] = useState(false)
 
@@ -41,7 +42,7 @@ export default function TTestCalculator() {
     
     try {
       if (inputMode === "raw") {
-        const sample1 = sampleData.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+        const sample1 = (sampleData || "").split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
         
         if (sample1.length < 2) {
           setError("Sample 1 must have at least 2 values")
@@ -50,7 +51,7 @@ export default function TTestCalculator() {
 
         let sample2: number[] | undefined
         if (testType === "two-sample" || testType === "paired") {
-          sample2 = sample2Data.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+          sample2 = (sample2Data || "").split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
           
           if (sample2.length < 2) {
             setError("Sample 2 must have at least 2 values")
@@ -63,8 +64,8 @@ export default function TTestCalculator() {
           }
         }
 
-        const mu0 = parseFloat(hypothesizedMean)
-        const alphaValue = parseFloat(alpha)
+        const mu0 = parseFloat(hypothesizedMean || "0")
+        const alphaValue = parseFloat(alpha || "0.05")
 
         if (isNaN(mu0) || isNaN(alphaValue)) {
           setError("Invalid hypothesized mean or alpha value")
@@ -76,14 +77,14 @@ export default function TTestCalculator() {
           return
         }
 
-        const testResult = calculateTTest(sample1, testType, tailType, alphaValue, mu0, sample2)
+        const testResult = calculateTTest(sample1, testType || "one-sample", tailType || "two", alphaValue, mu0, sample2)
         setResult(testResult)
       } else {
-        const sampleMean1 = parseFloat(mean1)
-        const sampleSD1 = parseFloat(sd1)
-        const sampleN1 = parseInt(n1)
-        const mu0 = parseFloat(hypothesizedMean)
-        const alphaValue = parseFloat(alpha)
+        const sampleMean1 = parseFloat(mean1 || "0")
+        const sampleSD1 = parseFloat(sd1 || "0")
+        const sampleN1 = parseInt(n1 || "0")
+        const mu0 = parseFloat(hypothesizedMean || "0")
+        const alphaValue = parseFloat(alpha || "0.05")
 
         if (isNaN(sampleMean1) || isNaN(sampleSD1) || isNaN(sampleN1)) {
           setError("Invalid sample statistics for Sample 1")
@@ -101,9 +102,9 @@ export default function TTestCalculator() {
         }
 
         if (testType === "two-sample" || testType === "paired") {
-          const sampleMean2 = parseFloat(mean2)
-          const sampleSD2 = parseFloat(sd2)
-          const sampleN2 = parseInt(n2)
+          const sampleMean2 = parseFloat(mean2 || "0")
+          const sampleSD2 = parseFloat(sd2 || "0")
+          const sampleN2 = parseInt(n2 || "0")
 
           if (isNaN(sampleMean2) || isNaN(sampleSD2) || isNaN(sampleN2)) {
             setError("Invalid sample statistics for Sample 2")
@@ -127,7 +128,7 @@ export default function TTestCalculator() {
 
           const testResult = calculateTTestFromStats(
             sampleMean1, sampleSD1, sampleN1,
-            testType, tailType, alphaValue,
+            testType || "two-sample", tailType || "two", alphaValue,
             mu0,
             sampleMean2, sampleSD2, sampleN2
           )
@@ -145,7 +146,7 @@ export default function TTestCalculator() {
 
           const testResult = calculateTTestFromStats(
             sampleMean1, sampleSD1, sampleN1,
-            testType, tailType, alphaValue,
+            testType || "one-sample", tailType || "two", alphaValue,
             mu0
           )
           setResult(testResult)
@@ -254,8 +255,8 @@ Generated: ${new Date().toLocaleString()}
 
 TEST CONFIGURATION
 ─────────────────────────────────────────────────────
-Test Type:          ${testTypeNames[testType]}
-Tail Type:          ${tailTypeNames[tailType]}
+Test Type:          ${testTypeNames[testType || "one-sample"]}
+Tail Type:          ${tailTypeNames[tailType || "two"]}
 Significance (α):   ${alpha}${testType === "one-sample" ? `
 Hypothesized Mean:  ${hypothesizedMean}` : ""}
 
@@ -280,7 +281,7 @@ Critical Value(s):  ${result.criticalValue.map(v => v.toFixed(4)).join(", ")}
 DECISION
 ─────────────────────────────────────────────────────
 ${result.reject ? "✗ REJECT H₀" : "✓ FAIL TO REJECT H₀"}
-${result.pValue < parseFloat(alpha) 
+${result.pValue < parseFloat(alpha || "0.05") 
   ? `p-value (${result.pValue.toFixed(4)}) < α (${alpha})`
   : `p-value (${result.pValue.toFixed(4)}) ≥ α (${alpha})`}
 
@@ -306,6 +307,8 @@ ${result.interpretation}
   }
 
   const downloadReportAsText = () => {
+    if (!result) return
+    
     const report = generateFormattedReport()
     const blob = new Blob([report], { type: 'text/plain;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -682,7 +685,7 @@ ${result.interpretation}
                         {result.conclusion}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {result.pValue < parseFloat(alpha) 
+                        {result.pValue < parseFloat(alpha || "0.05") 
                           ? `p-value (${result.pValue.toFixed(4)}) < α (${alpha})`
                           : `p-value (${result.pValue.toFixed(4)}) ≥ α (${alpha})`
                         }
@@ -706,8 +709,8 @@ ${result.interpretation}
                 tStatistic={result.tStatistic}
                 criticalValues={result.criticalValue}
                 df={result.df}
-                tailType={tailType}
-                alpha={parseFloat(alpha)}
+                tailType={tailType || "two"}
+                alpha={parseFloat(alpha || "0.05")}
               />
             </Card>
           </>
