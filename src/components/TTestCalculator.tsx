@@ -216,15 +216,18 @@ export default function TTestCalculator() {
     ).join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
     
-    link.setAttribute('href', url)
-    link.setAttribute('download', `t-test-results-${new Date().toISOString().split('T')[0]}.csv`)
-    link.style.visibility = 'hidden'
+    link.href = url
+    link.download = `t-test-results-${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(link)
     link.click()
-    document.body.removeChild(link)
+    
+    setTimeout(() => {
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    }, 100)
 
     toast.success("Results exported to CSV")
   }
@@ -305,15 +308,18 @@ ${result.interpretation}
   const downloadReportAsText = () => {
     const report = generateFormattedReport()
     const blob = new Blob([report], { type: 'text/plain;charset=utf-8;' })
-    const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
     
-    link.setAttribute('href', url)
-    link.setAttribute('download', `t-test-report-${new Date().toISOString().split('T')[0]}.txt`)
-    link.style.visibility = 'hidden'
+    link.href = url
+    link.download = `t-test-report-${new Date().toISOString().split('T')[0]}.txt`
     document.body.appendChild(link)
     link.click()
-    document.body.removeChild(link)
+    
+    setTimeout(() => {
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    }, 100)
 
     toast.success("Report downloaded")
   }
