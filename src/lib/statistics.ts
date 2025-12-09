@@ -34,9 +34,9 @@ function tCDF(t: number, df: number): number {
   const a = df / 2
   const b = 0.5
   
-  const betaInc = incompleteBeta(x, a, b)
+  let betaInc = incompleteBeta(x, a, b)
   
-  if (t > 0) {
+  if (t >= 0) {
     return 1 - betaInc / 2
   } else {
     return betaInc / 2
@@ -47,10 +47,19 @@ function incompleteBeta(x: number, a: number, b: number): number {
   if (x <= 0) return 0
   if (x >= 1) return 1
   
-  const lbeta = gammaLn(a) + gammaLn(b) - gammaLn(a + b)
-  const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a
+  const bt = Math.exp(
+    gammaLn(a + b) - 
+    gammaLn(a) - 
+    gammaLn(b) + 
+    a * Math.log(x) + 
+    b * Math.log(1 - x)
+  )
   
-  return front * betaContinuedFraction(x, a, b) / beta(a, b)
+  if (x < (a + 1) / (a + b + 2)) {
+    return bt * betaContinuedFraction(x, a, b) / a
+  } else {
+    return 1 - bt * betaContinuedFraction(1 - x, b, a) / b
+  }
 }
 
 function beta(a: number, b: number): number {
@@ -116,16 +125,16 @@ function tQuantile(p: number, df: number): number {
     throw new Error("Probability must be between 0 and 1")
   }
   
-  let left = -100
-  let right = 100
-  const epsilon = 0.000001
-  const maxIterations = 100
+  let left = -50
+  let right = 50
+  const epsilon = 0.00001
+  const maxIterations = 150
   
   for (let i = 0; i < maxIterations; i++) {
     const mid = (left + right) / 2
     const cdf = tCDF(mid, df)
     
-    if (Math.abs(cdf - p) < epsilon || Math.abs(right - left) < epsilon) {
+    if (Math.abs(cdf - p) < epsilon) {
       return mid
     }
     
@@ -133,6 +142,10 @@ function tQuantile(p: number, df: number): number {
       left = mid
     } else {
       right = mid
+    }
+    
+    if (Math.abs(right - left) < epsilon) {
+      return mid
     }
   }
   
