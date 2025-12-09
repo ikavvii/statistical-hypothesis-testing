@@ -1,4 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Toaster } from "@/components/ui/sonner"
 import { BookOpen, Calculator } from "@phosphor-icons/react"
 import CheatSheet from "@/components/CheatSheet"
 import TTestCalculator from "@/components/TTestCalculator"
@@ -6,6 +7,7 @@ import TTestCalculator from "@/components/TTestCalculator"
 function App() {
   return (
     <div className="min-h-screen bg-background">
+      <Toaster position="top-right" />
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-6">
           <h1 className="text-4xl md:text-5xl font-bold text-primary tracking-tight" style={{ letterSpacing: '-0.02em' }}>

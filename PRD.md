@@ -40,6 +40,13 @@ An interactive educational web app that serves as both a comprehensive cheat she
 - Progression: Test configured → hypotheses display → calculation shows → comparison to alpha → decision stated → interpretation provided
 - Success criteria: Clear, educational presentation of the decision-making process with proper statistical language
 
+**Export and Share Results**
+- Functionality: Allows users to export test results as CSV file or generate a formatted text report that can be copied or downloaded
+- Purpose: Enables students to save their work for assignments, share results with study groups, or include in lab reports
+- Trigger: User clicks "Export CSV" or "Share Report" button after completing a test
+- Progression: User completes test → clicks export/share → selects format (CSV for data analysis or formatted report for documentation) → downloads file or copies to clipboard → pastes into assignment or shares with peers
+- Success criteria: Clean, well-formatted exports that include all relevant test information (configuration, hypotheses, statistics, results, and interpretation)
+
 ## Edge Case Handling
 
 - **Empty/Invalid Data**: Display helpful validation messages guiding users to correct input formats (both for raw data and summary statistics)
@@ -48,6 +55,8 @@ An interactive educational web app that serves as both a comprehensive cheat she
 - **Division by Zero**: Handle cases with zero variance by displaying appropriate error message
 - **Extreme Values**: Gracefully handle very large or small numbers without breaking calculations
 - **Missing Inputs**: Disable calculation until all required fields are completed
+- **Export Without Results**: Export/share buttons only appear after a test has been successfully calculated
+- **Browser Compatibility**: Use standard clipboard API with fallback error handling for browsers without clipboard access
 
 ## Design Direction
 
@@ -100,6 +109,8 @@ Animations should reinforce the educational experience - revealing information p
   - **Badge** (shadcn): Tag important concepts like "Type I Error", "Two-tailed", etc.
   - **Separator** (shadcn): Visual division between cheat sheet sections
   - **Label** (shadcn): Form field labels for calculator inputs
+  - **Dialog** (shadcn): Modal for displaying formatted report with copy/download options
+  - **Toast** (sonner): Success/error notifications for export and clipboard operations
 
 - **Customizations**:
   - **SVG Distribution Visualization**: Custom D3-based component for rendering t-distribution curves with dynamic shading
@@ -119,6 +130,8 @@ Animations should reinforce the educational experience - revealing information p
   - Question (Phosphor): Help tooltips for complex concepts
   - CheckCircle/XCircle (Phosphor): Hypothesis test decisions (accept/reject)
   - CaretDown (Phosphor): Accordion expansion indicators
+  - DownloadSimple (Phosphor): Export to CSV functionality
+  - ShareNetwork (Phosphor): Share formatted report functionality
 
 - **Spacing**:
   - Page margins: px-6 md:px-12 for breathing room

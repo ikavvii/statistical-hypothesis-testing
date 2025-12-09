@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle, XCircle, Warning, ListNumbers, Function } from "@phosphor-icons/react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CheckCircle, XCircle, Warning, ListNumbers, Function, DownloadSimple, ShareNetwork } from "@phosphor-icons/react"
+import { toast } from "sonner"
 import TDistributionChart from "./TDistributionChart"
 import { calculateTTest, calculateTTestFromStats, TTestResult, TTestType } from "@/lib/statistics"
 
@@ -32,6 +34,7 @@ export default function TTestCalculator() {
   const [tailType, setTailType] = useState<"two" | "left" | "right">("two")
   const [result, setResult] = useState<TTestResult | null>(null)
   const [error, setError] = useState("")
+  const [showReportDialog, setShowReportDialog] = useState(false)
 
   const handleCalculate = () => {
     setError("")
@@ -165,6 +168,154 @@ export default function TTestCalculator() {
     setHypothesizedMean("0")
     setResult(null)
     setError("")
+  }
+
+  const exportToCSV = () => {
+    if (!result) return
+
+    const rows = [
+      ["T-Test Results Report"],
+      [""],
+      ["Test Configuration"],
+      ["Test Type", testType],
+      ["Tail Type", tailType],
+      ["Significance Level (α)", alpha],
+      ...(testType === "one-sample" ? [["Hypothesized Mean (μ₀)", hypothesizedMean]] : []),
+      [""],
+      ["Hypotheses"],
+      ["Null Hypothesis (H₀)", result.hypotheses.null],
+      ["Alternative Hypothesis (H₁)", result.hypotheses.alternative],
+      [""],
+      ["Sample Statistics"],
+      ["Sample Mean", result.sampleMean.toFixed(4)],
+      ["Sample SD", result.sampleSD.toFixed(4)],
+      ["Sample Size", result.sampleSize.toString()],
+      ["Degrees of Freedom", result.df.toString()],
+      [""],
+      ["Test Results"],
+      ["T-Statistic", result.tStatistic.toFixed(4)],
+      ["P-Value", result.pValue.toFixed(4)],
+      ["Critical Value(s)", result.criticalValue.map(v => v.toFixed(4)).join(", ")],
+      ["Decision", result.reject ? "Reject H₀" : "Fail to Reject H₀"],
+      [""],
+      ["Conclusion"],
+      [result.conclusion],
+      [""],
+      ["Interpretation"],
+      [result.interpretation]
+    ]
+
+    const csvContent = rows.map(row => 
+      row.map(cell => {
+        const cellStr = String(cell)
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`
+        }
+        return cellStr
+      }).join(',')
+    ).join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `t-test-results-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast.success("Results exported to CSV")
+  }
+
+  const generateFormattedReport = () => {
+    if (!result) return ""
+
+    const testTypeNames = {
+      "one-sample": "One-Sample T-Test",
+      "two-sample": "Two-Sample T-Test",
+      "paired": "Paired T-Test"
+    }
+
+    const tailTypeNames = {
+      "two": "Two-Tailed",
+      "left": "Left-Tailed",
+      "right": "Right-Tailed"
+    }
+
+    return `═══════════════════════════════════════════════════════
+T-TEST ANALYSIS REPORT
+Generated: ${new Date().toLocaleString()}
+═══════════════════════════════════════════════════════
+
+TEST CONFIGURATION
+─────────────────────────────────────────────────────
+Test Type:          ${testTypeNames[testType]}
+Tail Type:          ${tailTypeNames[tailType]}
+Significance (α):   ${alpha}${testType === "one-sample" ? `
+Hypothesized Mean:  ${hypothesizedMean}` : ""}
+
+HYPOTHESES
+─────────────────────────────────────────────────────
+H₀ (Null):         ${result.hypotheses.null}
+H₁ (Alternative):  ${result.hypotheses.alternative}
+
+SAMPLE STATISTICS
+─────────────────────────────────────────────────────
+Mean:               ${result.sampleMean.toFixed(4)}
+Standard Deviation: ${result.sampleSD.toFixed(4)}
+Sample Size:        ${result.sampleSize}
+Degrees of Freedom: ${result.df}
+
+TEST RESULTS
+─────────────────────────────────────────────────────
+T-Statistic:        ${result.tStatistic.toFixed(4)}
+P-Value:            ${result.pValue.toFixed(4)}
+Critical Value(s):  ${result.criticalValue.map(v => v.toFixed(4)).join(", ")}
+
+DECISION
+─────────────────────────────────────────────────────
+${result.reject ? "✗ REJECT H₀" : "✓ FAIL TO REJECT H₀"}
+${result.pValue < parseFloat(alpha) 
+  ? `p-value (${result.pValue.toFixed(4)}) < α (${alpha})`
+  : `p-value (${result.pValue.toFixed(4)}) ≥ α (${alpha})`}
+
+CONCLUSION
+─────────────────────────────────────────────────────
+${result.conclusion}
+
+INTERPRETATION
+─────────────────────────────────────────────────────
+${result.interpretation}
+
+═══════════════════════════════════════════════════════`
+  }
+
+  const copyReportToClipboard = async () => {
+    const report = generateFormattedReport()
+    try {
+      await navigator.clipboard.writeText(report)
+      toast.success("Report copied to clipboard")
+    } catch (err) {
+      toast.error("Failed to copy report")
+    }
+  }
+
+  const downloadReportAsText = () => {
+    const report = generateFormattedReport()
+    const blob = new Blob([report], { type: 'text/plain;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `t-test-report-${new Date().toISOString().split('T')[0]}.txt`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast.success("Report downloaded")
   }
 
   return (
@@ -463,6 +614,17 @@ export default function TTestCalculator() {
             <Card className="p-6 shadow-sm">
               <h2 className="text-2xl font-semibold text-primary mb-4">Test Results</h2>
               
+              <div className="flex gap-2 mb-4">
+                <Button onClick={exportToCSV} variant="outline" size="sm" className="gap-2">
+                  <DownloadSimple size={18} weight="duotone" />
+                  Export CSV
+                </Button>
+                <Button onClick={() => setShowReportDialog(true)} variant="outline" size="sm" className="gap-2">
+                  <ShareNetwork size={18} weight="duotone" />
+                  Share Report
+                </Button>
+              </div>
+              
               <div className="space-y-4">
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h3 className="font-semibold mb-2 text-sm">Hypotheses</h3>
@@ -556,6 +718,34 @@ export default function TTestCalculator() {
           </Card>
         )}
       </div>
+
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Formatted Report</DialogTitle>
+            <DialogDescription>
+              Copy or download this formatted analysis report
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <pre className="bg-muted/50 p-4 rounded-lg text-xs font-mono overflow-x-auto border border-border whitespace-pre-wrap break-words">
+              {result && generateFormattedReport()}
+            </pre>
+            
+            <div className="flex gap-2">
+              <Button onClick={copyReportToClipboard} className="flex-1 gap-2">
+                <ShareNetwork size={18} weight="duotone" />
+                Copy to Clipboard
+              </Button>
+              <Button onClick={downloadReportAsText} variant="outline" className="flex-1 gap-2">
+                <DownloadSimple size={18} weight="duotone" />
+                Download as TXT
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
